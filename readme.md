@@ -1,4 +1,4 @@
-## Laravel, Lumen and Native php elasticseach query builder to build complex queries using an elegant syntax
+## Laravel, Lumen and Native php elasticseach query builder to build complex queries/laravel使用elasticseach进行全文检索
 ## [中文文档](readme_zh_CN.md)
 - Keeps you away from wasting your time by replacing array queries with a simple and elegant syntax you will love.
 - Elasticsearch data model for types and indices inspired from laravel eloquent.
