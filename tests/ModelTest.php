@@ -2,6 +2,7 @@
 
 namespace Foryoufeng\Elasticsearch\Tests;
 
+use Foryoufeng\Elasticsearch\Facades\ES;
 use Foryoufeng\Elasticsearch\Tests\Traits\ESQueryTrait;
 
 class ModelTest extends TestCase
@@ -58,6 +59,12 @@ class ModelTest extends TestCase
     {
         $good=Good::where('goods_name','like','泥漆')->get();
         dump($good->toArray());
+    }
+
+    public function testEs()
+    {
+        $res=ES::index('toodudugoods')->type('goods')->get();
+        dump($res);
     }
 
     public function testUpdate()
