@@ -683,8 +683,10 @@ class Query
     protected function getBody()
     {
         //add highlight
-        foreach($this->model->highlight as $highlight) {
-            $this->body['highlight']['fields'][$highlight]=new \stdClass();
+        if(isset($this->model->highlight)){
+            foreach($this->model->highlight as $highlight) {
+                $this->body['highlight']['fields'][$highlight]=new \stdClass();
+            }
         }
         $body = $this->body;
 
