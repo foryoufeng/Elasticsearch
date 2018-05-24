@@ -13,6 +13,6 @@ use Foryoufeng\Elasticsearch\Model;
 
 class Good extends Model
 {
-  protected $index='tdd';
-  public $highlight=['goods_name'];
+  protected $index='toodudugoods';
+  //public $highlight=['goods_name'];
 }
