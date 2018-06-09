@@ -147,6 +147,10 @@ class ScoutEngine extends Engine
             }
         }
 
+        if ($sort = $this->sort($builder)) {
+            $params['body']['sort'] = $sort;
+        }
+
         if (isset($options['from'])) {
             $params['body']['from'] = $options['from'];
         }
@@ -216,5 +220,20 @@ class ScoutEngine extends Engine
     public function getTotalCount($results)
     {
         return $results['hits']['total'];
+    }
+    /**
+     * Generates the sort if theres any.
+     *
+     * @param  Builder $builder
+     * @return array|null
+     */
+    protected function sort($builder)
+    {
+        if (count($builder->orders) == 0) {
+            return null;
+        }
+        return collect($builder->orders)->map(function($order) {
+            return [$order['column'] => $order['direction']];
+        })->toArray();
     }
 }
