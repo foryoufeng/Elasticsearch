@@ -119,6 +119,25 @@ $ php artisan vendor:publish --provider="Foryoufeng\Elasticsearch\ElasticsearchS
     'connection' => env('ELASTIC_CONNECTION', 'default'),
 ],
 ```
+
+## Scout 搜索
+
+现在你可以在你的model中使用between或者or等方法了，例子如下
+
+```
+
+$res=Goods::search('test')
+            ->where('shop_price', ['between'=>[650,5560]])
+            ->paginate(10);
+        $res->each(function ($item) {
+            print_r($item->goods_name.'===>'.$item->shop_price."\n");
+        });
+```
+// 更多示例请参考测试代码
+
+[ScoutSearchTest.php](./tests/ScoutSearchTest.php).
+
+
 ## Elasticsearch data model
 
 生成的索引是 `es.php`中配置的'index',如'test_'+Model的名称如'Post'，那么产生的索引是'test_posts'
