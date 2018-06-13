@@ -126,7 +126,25 @@ All you have to do is updating these lines in `config/scout.php` configuration f
 
 Have a look at [laravel Scout documentation](https://laravel.com/docs/5.4/scout#configuration).
 
+## Scout search
 
+now  you can use between or in and so on method such as
+
+```
+
+$res=Goods::search('test')
+            ->where('shop_price', ['between'=>[650,5560]])
+            ->paginate(10);
+        $res->each(function ($item) {
+            print_r($item->goods_name.'===>'.$item->shop_price."\n");
+        });
+```
+// more infomation you can see the test code
+
+[ScoutSearchTest.php](./tests/ScoutSearchTest.php).
+
+
+----
 
 ## Elasticsearch data model
 

@@ -37,8 +37,7 @@ class ScoutEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+        $models->each(function ($model) use (&$params) {
             $index=str_replace('\\', '', Str::snake(Str::plural(class_basename($model))));
             $params['body'][] = [
                 'update' => [
@@ -52,7 +51,6 @@ class ScoutEngine extends Engine
                 'doc' => $model->toSearchableArray(),
                 'doc_as_upsert' => true
             ];
-
         });
 
         $this->elastic->bulk($params);
@@ -67,8 +65,7 @@ class ScoutEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+        $models->each(function ($model) use (&$params) {
             $index=str_replace('\\', '', Str::snake(Str::plural(class_basename($model))));
             $params['body'][] = [
                 'delete' => [
@@ -158,12 +155,12 @@ class ScoutEngine extends Engine
         if (isset($options['size'])) {
             $params['body']['size'] = $options['size'];
         }
-
-        if (isset($options['numericFilters']) && count($options['numericFilters'])) {
-            $params['body']['query']['bool']['must'] = array_merge($params['body']['query']['bool']['must'],
-                $options['numericFilters']);
+        if (isset($options['numericFilters']) && \count($options['numericFilters'])) {
+            $params['body']['query']['bool']['must'] = array_merge(
+                $params['body']['query']['bool']['must'],
+                $options['numericFilters']
+            );
         }
-
         return $this->elastic->search($params);
     }
 
@@ -175,7 +172,42 @@ class ScoutEngine extends Engine
     protected function filters(Builder $builder)
     {
         return collect($builder->wheres)->map(function ($value, $key) {
-            return ['match_phrase' => [$key => $value]];
+            if (\is_array($value)) {
+                if (array_key_exists('between', $value)) {
+                    $filter=[
+                        'range'=>[
+                            $key=>[
+                                'gte'=>$value['between'][0],
+                                'lte'=>$value['between'][1]
+                            ]
+                        ]
+                    ];
+                } elseif (array_key_exists('in', $value)) {
+                    $filter=[
+                        'terms'=>[
+                            $key=>$value['in']
+                        ]
+                    ];
+                } elseif (array_key_exists('or', $value)) {
+                    foreach ($value['or'] as $k=>$v) {
+                        $filter['bool']['should'][$k]['term'][$key]=$v;
+                    }
+                } else {
+                    //default is range such as  gt/lt/gte/lte example
+                    // $model->where('attr',['gt'=>100])
+                    $keys=array_keys($value);
+                    $filter=[
+                        'range'=>[
+                            $key=>[
+                                $keys[0]=>$value[$keys[0]],
+                            ]
+                        ]
+                    ];
+                }
+                return $filter;
+            } else {
+                return ['match_phrase' => [$key => $value]];
+            }
         })->values()->all();
     }
 
@@ -195,7 +227,8 @@ class ScoutEngine extends Engine
             ->pluck('_id')->values()->all();
 
         $models = $model->whereIn(
-            $model->getKeyName(), $keys
+            $model->getKeyName(),
+            $keys
         )->get()->keyBy($model->getKeyName());
 
         return collect($results['hits']['hits'])->map(function ($hit) use ($model, $models) {
@@ -210,7 +243,9 @@ class ScoutEngine extends Engine
         });
     }
 
-    public function mapIds($results){}
+    public function mapIds($results)
+    {
+    }
 
     /**
      * Get the total count from a raw result returned by the engine.
@@ -232,7 +267,7 @@ class ScoutEngine extends Engine
         if (count($builder->orders) == 0) {
             return null;
         }
-        return collect($builder->orders)->map(function($order) {
+        return collect($builder->orders)->map(function ($order) {
             return [$order['column'] => $order['direction']];
         })->toArray();
     }
