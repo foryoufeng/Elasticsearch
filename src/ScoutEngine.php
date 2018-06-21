@@ -3,12 +3,11 @@
 namespace Foryoufeng\Elasticsearch;
 
 use Illuminate\Support\Str;
-use Laravel\Scout\Builder;
-use Laravel\Scout\Engines\Engine;
+use Foryoufeng\Elasticsearch\Scout\Builder;
 use Elasticsearch\Client as Elastic;
 use Illuminate\Database\Eloquent\Collection;
 
-class ScoutEngine extends Engine
+class ScoutEngine
 {
 
     /**
@@ -86,12 +85,49 @@ class ScoutEngine extends Engine
      */
     public function search(Builder $builder)
     {
-        return $this->performSearch($builder, array_filter([
-            'numericFilters' => $this->filters($builder),
-            'size' => $builder->limit,
-        ]));
+        return $this->performSearch($builder,null!==$builder->limit?['size'=>$builder->limit]:[]);
+//        return $this->performSearch($builder, array_filter([
+//            'numericFilters' => $this->filters($builder),
+//            'size' => $builder->limit,
+//        ]));
     }
 
+    public function count(Builder $builder)
+    {
+        $result = $this->performCount($builder);
+        return isset($result['count']) ?? false;
+    }
+
+    public function keys(Builder $builder)
+    {
+        return $this->getIds($this->search($builder));
+    }
+
+    /**
+     * Get the results of the given query mapped onto models.
+     * @param Builder $builder
+     * @return Collection
+     */
+    public function get(Builder $builder): Collection
+    {
+        return Collection::make($this->map(
+            $this->search($builder), $builder->model
+        ));
+    }
+
+    /**
+     * Get the aggregations of the give aggs
+     * [warning] excute a search with each 'aggregations'
+     *
+     * @param Builder $builder
+     * @param null $key
+     * @return mixed
+     */
+    public function aggregations(Builder $builder, $key = null)
+    {
+        $result = $this->execute($builder);
+        return null===$key ? $result['aggregations'] : array_get($result['aggregations'], $key);
+    }
     /**
      * Perform the given search on the engine.
      * @param  Builder  $builder
@@ -102,14 +138,45 @@ class ScoutEngine extends Engine
     public function paginate(Builder $builder, $perPage, $page)
     {
         $result = $this->performSearch($builder, [
-            'numericFilters' => $this->filters($builder),
+            //'numericFilters' => $this->filters($builder),
             'from' => (($page * $perPage) - $perPage),
             'size' => $perPage,
         ]);
 
-        $result['nbPages'] = $result['hits']['total']/$perPage;
+        $result['nbPages'] = (int) ceil($result['hits']['total']/$perPage);
 
         return $result;
+    }
+
+    private function parseBody(Builder $builder)
+    {
+        $body = [];
+
+        $body['query'] = $builder->bool->toArray();
+
+        foreach(['query_string', 'match_all'] as $var)
+        {
+            if (null!==$builder->$var)
+            {
+                $body['query']['bool']['must'][][$var] = $builder->$var;
+                // break;
+            }
+        }
+        foreach(['_source', 'aggs', 'track_scores', 'stored_fields', 'docvalue_fields', 'highlight', 'rescore', 'explain', 'version', 'indices_boost', 'min_score', 'search_after'] as $var)
+            null!==$builder->$var && $body[$var] = $builder->$var;
+
+        return $body;
+    }
+
+
+    protected function performCount(Builder $builder, array $options = [])
+    {
+        $query = [
+            'index' =>  $this->index,
+            'type'  =>  $builder->model->searchableAs(),
+            'body' => $this->parseBody($builder),
+        ];
+        return $this->elastic->count($query);
     }
 
     /**
@@ -124,13 +191,7 @@ class ScoutEngine extends Engine
         $params = [
             'index' => $this->index.$index,
             'type' => $builder->model->searchableAs(),
-            'body' => [
-                'query' => [
-                    'bool' => [
-                        'must' => [['query_string' => [ 'query' => $builder->query]]]
-                    ]
-                ]
-            ]
+            'body' => $this->parseBody($builder),
         ];
         /**
          * 这里使用了 highlight 的配置
@@ -143,22 +204,22 @@ class ScoutEngine extends Engine
                 $params['body']['highlight']['fields'][$attribute] = new \stdClass();
             }
         }
-
         if ($sort = $this->sort($builder)) {
             $params['body']['sort'] = $sort;
         }
-
-        if (isset($options['from'])) {
+        if (array_key_exists('from', $options)) {
             $params['body']['from'] = $options['from'];
         }
 
-        if (isset($options['size'])) {
+        if (array_key_exists('size', $options)) {
             $params['body']['size'] = $options['size'];
         }
-        if (isset($options['numericFilters']) && \count($options['numericFilters'])) {
-            $params['body']['query']['bool']['must'] = array_merge(
-                $params['body']['query']['bool']['must'],
-                $options['numericFilters']
+
+        if ($builder->callback) {
+            return call_user_func(
+                $builder->callback,
+                $this->elasticsearch,
+                $params
             );
         }
         return $this->elastic->search($params);
@@ -241,6 +302,22 @@ class ScoutEngine extends Engine
             }
             return $one;
         });
+    }
+
+    /**
+     *
+     * Pluck and return the primary keys of the results.
+     *
+     * @param  mixed  $results
+     * @return \Illuminate\Support\Collection
+     */
+    public function getIds($results) {
+
+        return collect($results['hits']['hits'])
+            ->pluck('_id')
+            ->values()
+            ->all();
+
     }
 
     public function mapIds($results)
