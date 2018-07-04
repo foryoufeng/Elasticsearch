@@ -86,10 +86,6 @@ class ScoutEngine
     public function search(Builder $builder)
     {
         return $this->performSearch($builder,null!==$builder->limit?['size'=>$builder->limit]:[]);
-//        return $this->performSearch($builder, array_filter([
-//            'numericFilters' => $this->filters($builder),
-//            'size' => $builder->limit,
-//        ]));
     }
 
     public function count(Builder $builder)
@@ -138,7 +134,6 @@ class ScoutEngine
     public function paginate(Builder $builder, $perPage, $page)
     {
         $result = $this->performSearch($builder, [
-            //'numericFilters' => $this->filters($builder),
             'from' => (($page * $perPage) - $perPage),
             'size' => $perPage,
         ]);
@@ -345,7 +340,7 @@ class ScoutEngine
             return null;
         }
         return collect($builder->orders)->map(function ($order) {
-            return [$order['column'] => $order['direction']];
+            return [$order['column'] => ['order'=>$order['direction']]];
         })->toArray();
     }
 }
