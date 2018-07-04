@@ -22,9 +22,21 @@ class GoodTest extends TestCase
     public function testBetween()
     {
         $goods = Good::search('花瓣雨')
-            ->whereBetween('goods_id', [372, 375])
-            ->whereBetween('shop_price', [300, 511])
+            //->whereBetween('goods_id', [372, 375])
+//            ->whereBetween('shop_price', [300, 511])
             ->take(100)->get();
+        dump($goods->toArray());
+        $this->assertNotEmpty($goods);
+    }
+
+    public function testOrder()
+    {
+        $goods = Good::search('花瓣雨')
+            //->whereBetween('goods_id', [372, 375])
+//            ->whereBetween('shop_price', [300, 511])
+            ->orderBy('shop_price','desc')
+            ->get();
+        //dump($goods->toArray());
         $this->assertNotEmpty($goods);
     }
 }
